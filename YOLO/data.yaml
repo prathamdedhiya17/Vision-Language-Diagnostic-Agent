@@ -1,0 +1,13 @@
+# data.yaml
+train: ./yolo_dataset/images/train
+val: ./yolo_dataset/images/val
+
+# Classes
+nc: 6
+names: 
+  0: 'open_circuit'
+  1: 'short_circuit'
+  2: 'mousebite'
+  3: 'spur'
+  4: 'pin_hole'
+  5: 'spurious_copper'
