@@ -1,0 +1,6 @@
+PyMuPDF 
+pytesseract 
+chromadb 
+Pillow 
+pdf2image 
+sentence-transformers
