@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>VLDA — PCB Inspection</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Barlow:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07090c;--surface:#0e1218;--border:#1c2330;--border2:#263040;
+  --green:#00e5a0;--amber:#f5a623;--red:#ff4d4d;--blue:#4d9eff;--purple:#a78bfa;
+  --text:#c8d6e8;--muted:#5a6a7e;
+  --mono:'IBM Plex Mono',monospace;--sans:'Barlow',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;min-height:100vh;
+  background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);
+  background-size:40px 40px}
+
+/* HEADER */
+header{background:var(--surface);border-bottom:1px solid var(--border2);padding:0 32px;display:flex;align-items:center;gap:16px;height:56px;position:sticky;top:0;z-index:100}
+.logo-dot{width:10px;height:10px;background:var(--green);border-radius:50%;box-shadow:0 0 8px var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.logo-text{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--green);letter-spacing:2px}
+.logo-sub{font-size:11px;color:var(--muted);font-family:var(--mono);margin-left:4px}
+.header-right{margin-left:auto;display:flex;gap:24px;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.header-right span b{color:var(--text)}
+
+/* LAYOUT */
+main{max-width:1320px;margin:0 auto;padding:32px 24px;display:grid;grid-template-columns:360px 1fr;gap:24px;align-items:start}
+
+/* PANEL */
+.panel{background:var(--surface);border:1px solid var(--border2);border-radius:4px;overflow:hidden;margin-bottom:16px}
+.panel:last-child{margin-bottom:0}
+.panel-header{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase}
+.ph-dot{width:6px;height:6px;border-radius:50%;background:var(--border2)}
+.ph-dot.green{background:var(--green);box-shadow:0 0 6px var(--green)}
+.ph-dot.purple{background:var(--purple);box-shadow:0 0 6px var(--purple)}
+.panel-body{padding:20px}
+
+/* UPLOAD */
+#drop-zone{border:1px dashed var(--border2);border-radius:4px;padding:32px 16px;text-align:center;cursor:pointer;transition:all .2s}
+#drop-zone:hover,#drop-zone.over{border-color:var(--green);background:#00e5a010}
+#drop-zone input{display:none}
+.upload-icon{font-size:28px;margin-bottom:12px;opacity:.5}
+.upload-label{font-size:13px;color:var(--muted);line-height:1.6}
+.upload-label b{color:var(--green)}
+.upload-hint{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:8px}
+#preview-wrap{display:none;margin-bottom:16px}
+#preview-wrap img{width:100%;border-radius:4px;border:1px solid var(--border2);display:block}
+.preview-name{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:6px;padding:4px 8px;background:var(--bg);border-radius:3px}
+
+/* BUTTON */
+#run-btn{width:100%;margin-top:16px;padding:12px;background:var(--green);color:#000;font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:2px;border:none;border-radius:3px;cursor:pointer;transition:all .2s;text-transform:uppercase}
+#run-btn:hover:not(:disabled){background:#00ffb3;box-shadow:0 0 20px #00e5a040}
+#run-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* PROGRESS */
+#progress{display:none;margin-top:16px}
+.ps{display:flex;align-items:center;gap:10px;padding:7px 0;font-family:var(--mono);font-size:11px;color:var(--muted);border-bottom:1px solid var(--border)}
+.ps:last-child{border-bottom:none}
+.pi{width:16px;text-align:center;font-size:13px}
+.ps.done{color:var(--green)}.ps.active{color:var(--amber)}
+.spin{width:12px;height:12px;border:2px solid var(--border2);border-top-color:var(--amber);border-radius:50%;animation:spin .6s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* RIGHT */
+#right-col{display:none}
+
+/* REPORT META */
+.report-meta{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border-bottom:1px solid var(--border)}
+.mc{background:var(--surface);padding:12px 16px}
+.ml{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px}
+.mv{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--text)}
+
+/* VERDICT */
+#verdict-banner{padding:14px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border)}
+#verdict-banner.accept{background:#00e5a012;border-left:4px solid var(--green)}
+#verdict-banner.reject{background:#ff4d4d12;border-left:4px solid var(--red)}
+#verdict-banner.rework{background:#f5a62312;border-left:4px solid var(--amber)}
+.vbadge{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:2px;padding:4px 10px;border-radius:3px;text-transform:uppercase}
+.accept .vbadge{background:var(--green);color:#000}.reject .vbadge{background:var(--red);color:#fff}.rework .vbadge{background:var(--amber);color:#000}
+.vreason{font-size:13px;color:var(--text);font-weight:300}
+
+/* DEFECT CARDS */
+.def-sum{display:flex;gap:12px;padding:12px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.sc{font-family:var(--mono);font-size:10px;padding:3px 10px;border-radius:2px;border:1px solid var(--border2);color:var(--muted)}
+.sc b{color:var(--text)}
+.def-grid{padding:20px;display:flex;flex-direction:column;gap:16px}
+.dc{border:1px solid var(--border2);border-radius:4px;overflow:hidden;animation:si .3s ease}
+@keyframes si{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.dc-hdr{padding:10px 16px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.did{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.dtbadge{font-family:var(--mono);font-size:11px;font-weight:600;padding:2px 8px;border-radius:2px;background:var(--border2);color:var(--text)}
+.sevbadge{font-family:var(--mono);font-size:10px;font-weight:600;padding:2px 8px;border-radius:2px;letter-spacing:1px;text-transform:uppercase;margin-left:auto}
+.sevbadge.Critical{background:#ff4d4d20;color:var(--red);border:1px solid var(--red)}
+.sevbadge.Major{background:#f5a62320;color:var(--amber);border:1px solid var(--amber)}
+.sevbadge.Minor{background:#4d9eff20;color:var(--blue);border:1px solid var(--blue)}
+.dc-body{display:grid;grid-template-columns:1fr 1fr}
+.f{padding:10px 16px;border-right:1px solid var(--border);border-bottom:1px solid var(--border)}
+.f:nth-child(even){border-right:none}.f.full{grid-column:1/-1;border-right:none}
+.fl{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px}
+.fv{font-size:12px;color:var(--text);line-height:1.5}
+.fv.mono{font-family:var(--mono);font-size:11px}
+.ipc-chip{display:inline-block;font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:2px;margin-top:2px}
+.ipc-chip.defect{background:#ff4d4d15;color:var(--red);border:1px solid #ff4d4d40}
+.ipc-chip.acceptable{background:#f5a62315;color:var(--amber);border:1px solid #f5a62340}
+.ipc-chip.target{background:#00e5a015;color:var(--green);border:1px solid #00e5a040}
+.cbar{height:4px;background:var(--border2);border-radius:2px;margin-top:6px;overflow:hidden}
+.cfill{height:100%;border-radius:2px;transition:width 1s ease}
+.rem-list{padding:0;list-style:none;display:flex;flex-direction:column;gap:4px;counter-reset:step}
+.rem-list li{display:flex;gap:8px;font-size:12px;color:var(--text);line-height:1.5;counter-increment:step}
+.rem-list li::before{content:counter(step);font-family:var(--mono);font-size:10px;color:var(--muted);background:var(--bg);border:1px solid var(--border2);border-radius:2px;width:18px;height:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+
+/* ── EVAL SECTION ── */
+
+/* Overall status bar (always visible at top) */
+#eval-status-bar{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.eval-status-label{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-right:4px}
+.eval-pill{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:1.5px;padding:5px 14px;border-radius:3px;text-transform:uppercase;display:flex;align-items:center;gap:6px}
+.eval-pill.pass{background:#00e5a020;color:var(--green);border:1px solid #00e5a050}
+.eval-pill.fail{background:#ff4d4d20;color:var(--red);border:1px solid #ff4d4d50}
+.eval-pill.partial{background:#f5a62320;color:var(--amber);border:1px solid #f5a62350}
+.eval-pill-dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.eval-overall-badge{font-family:var(--mono);font-size:12px;font-weight:600;padding:6px 16px;border-radius:3px;letter-spacing:2px;text-transform:uppercase;margin-left:auto}
+.eval-overall-badge.pass{background:var(--green);color:#000}
+.eval-overall-badge.fail{background:var(--red);color:#fff}
+
+/* Tabs */
+.eval-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);padding:0 20px}
+.etab{font-family:var(--mono);font-size:11px;padding:10px 16px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;transition:all .15s;margin-bottom:-1px;letter-spacing:.5px;display:flex;align-items:center;gap:6px}
+.etab.active{color:var(--green);border-bottom-color:var(--green)}
+.etab-badge{font-family:var(--mono);font-size:9px;font-weight:600;padding:1px 5px;border-radius:2px;letter-spacing:1px}
+.etab-badge.pass{background:#00e5a020;color:var(--green)}
+.etab-badge.fail{background:#ff4d4d20;color:var(--red)}
+.etab-badge.partial{background:#f5a62320;color:var(--amber)}
+.etab-content{display:none;padding:20px}
+.etab-content.active{display:block}
+
+/* RAGAs */
+.ragas-split{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.ragas-group{background:var(--bg);border:1px solid var(--border2);border-radius:4px;padding:14px}
+.rg-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.rg-title{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase}
+.rg-verdict{font-family:var(--mono);font-size:9px;font-weight:600;padding:2px 7px;border-radius:2px;letter-spacing:1px}
+.rg-verdict.pass{background:#00e5a020;color:var(--green)}.rg-verdict.fail{background:#ff4d4d20;color:var(--red)}
+.metric-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.metric-name{font-family:var(--mono);font-size:10px;color:var(--muted);width:130px;flex-shrink:0}
+.metric-bar-wrap{flex:1;height:6px;background:var(--border2);border-radius:3px;overflow:hidden}
+.metric-bar{height:100%;border-radius:3px;transition:width 1s ease}
+.metric-val{font-family:var(--mono);font-size:11px;font-weight:600;width:36px;text-align:right}
+.ragas-interp{font-size:12px;color:var(--muted);line-height:1.6;padding:10px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:4px}
+
+/* LLM Judge */
+.judge-overall-row{display:flex;align-items:center;gap:16px;padding:12px 14px;background:var(--bg);border:1px solid var(--border2);border-radius:4px;margin-bottom:12px}
+.jo-score{font-family:var(--mono);font-size:32px;font-weight:600}
+.jo-info{flex:1}
+.jo-label{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px}
+.jo-summary{font-size:12px;color:var(--text);line-height:1.5}
+.jo-badge{font-family:var(--mono);font-size:11px;font-weight:600;padding:5px 14px;border-radius:3px;letter-spacing:2px}
+.jo-badge.pass{background:#00e5a020;color:var(--green);border:1px solid #00e5a050}
+.jo-badge.fail{background:#ff4d4d20;color:var(--red);border:1px solid #ff4d4d50}
+.judge-dims{display:flex;flex-direction:column;gap:6px}
+.jd-row{background:var(--bg);border:1px solid var(--border2);border-radius:4px;overflow:hidden}
+.jd-hdr{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;user-select:none}
+.jd-hdr:hover{background:#ffffff05}
+.jd-score{font-family:var(--mono);font-size:12px;font-weight:600;padding:2px 8px;border-radius:3px;min-width:36px;text-align:center}
+.jd-name{font-size:12px;font-weight:600;flex:1}
+.jd-pill{font-family:var(--mono);font-size:9px;font-weight:600;padding:2px 7px;border-radius:2px;letter-spacing:1px}
+.jd-pill.pass{background:#00e5a020;color:var(--green)}.jd-pill.fail{background:#ff4d4d20;color:var(--red)}
+.jd-chev{font-family:var(--mono);font-size:10px;color:var(--muted);transition:transform .2s;margin-left:4px}
+.jd-chev.open{transform:rotate(90deg)}
+.jd-just{padding:0 14px 12px;font-size:12px;color:var(--muted);line-height:1.6;border-top:1px solid var(--border);display:none}
+.jd-just.vis{display:block;padding-top:10px}
+
+/* Citations */
+.cit-summary{padding:10px 14px;background:var(--bg);border:1px solid var(--border2);border-radius:4px;font-size:12px;color:var(--text);line-height:1.6;margin-bottom:12px}
+.cit-score-row{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.cit-score-num{font-family:var(--mono);font-size:28px;font-weight:600}
+.cit-score-label{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px}
+table.cit{width:100%;border-collapse:collapse;font-size:12px}
+table.cit th{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;padding:7px 10px;border-bottom:1px solid var(--border);text-align:left}
+table.cit td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+table.cit tr:last-child td{border-bottom:none}
+.cbadge{font-family:var(--mono);font-size:9px;font-weight:600;padding:2px 6px;border-radius:2px;letter-spacing:1px}
+.cbadge.PASS{background:#00e5a020;color:var(--green);border:1px solid #00e5a040}
+.cbadge.PARTIAL{background:#f5a62320;color:var(--amber);border:1px solid #f5a62340}
+.cbadge.FAIL{background:#ff4d4d20;color:var(--red);border:1px solid #ff4d4d40}
+.cit-expand{font-family:var(--mono);font-size:9px;color:var(--blue);cursor:pointer;white-space:nowrap}
+.cit-excerpt{display:none;margin-top:6px;padding:8px;background:var(--bg);border:1px solid var(--border2);border-radius:3px;font-size:11px;color:var(--muted);line-height:1.5;font-family:var(--mono)}
+.kw-chip{font-family:var(--mono);font-size:9px;padding:1px 5px;border-radius:2px;background:#00e5a010;color:var(--green);border:1px solid #00e5a030;margin:1px}
+
+/* DOWNLOAD BUTTON */
+#dl-btn{display:none;align-items:center;gap:8px;padding:10px 18px;background:transparent;color:var(--green);font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:1.5px;border:1px solid var(--green);border-radius:3px;cursor:pointer;transition:all .2s;text-transform:uppercase;margin-left:auto}
+#dl-btn:hover{background:var(--green);color:#000}
+#dl-btn.loading{opacity:.5;cursor:not-allowed}
+.dl-icon{font-size:13px}
+.report-actions{display:flex;align-items:center;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--bg)}
+
+@media(max-width:900px){
+  main{grid-template-columns:1fr}
+  #right-col{grid-column:1}
+  .report-meta,.ragas-split{grid-template-columns:1fr 1fr}
+  .dc-body{grid-template-columns:1fr}
+  .f{border-right:none}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-dot"></div>
+  <span class="logo-text">VLDA</span>
+  <span class="logo-sub">Vision-Language Diagnostic Agent</span>
+  <div class="header-right">
+    <span>STANDARD <b>IPC-A-610G</b></span>
+    <span>ENGINE <b>YOLOv8 + RAG</b></span>
+    <span>MODEL <b>Claude Sonnet</b></span>
+  </div>
+</header>
+
+<main>
+  <!-- LEFT -->
+  <div>
+    <div class="panel">
+      <div class="panel-header"><div class="ph-dot green"></div>PCB Image Input</div>
+      <div class="panel-body">
+        <div id="preview-wrap"><img id="preview-img" src="" alt=""><div class="preview-name" id="preview-name"></div></div>
+        <div id="drop-zone">
+          <input type="file" id="file-input" accept="image/*">
+          <div class="upload-icon">⬡</div>
+          <div class="upload-label"><b>Click to upload</b> or drag & drop<br>a PCB board image</div>
+          <div class="upload-hint">JPG · PNG · BMP · TIFF</div>
+        </div>
+        <button id="run-btn" disabled>RUN INSPECTION</button>
+        <div id="progress">
+          <div class="ps" id="s-yolo"><span class="pi">◈</span><span>YOLO defect detection</span></div>
+          <div class="ps" id="s-rag"><span class="pi">◈</span><span>IPC-A-610G retrieval (RAG)</span></div>
+          <div class="ps" id="s-claude"><span class="pi">◈</span><span>Claude report generation</span></div>
+          <div class="ps" id="s-eval"><span class="pi">◈</span><span>Running evaluations</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div id="right-col">
+
+    <!-- Inspection Report -->
+    <div class="panel">
+      <div class="panel-header"><div class="ph-dot green"></div>Inspection Report<span style="margin-left:auto;font-family:var(--mono);font-size:10px" id="hdr-rid"></span></div>
+      <div class="report-actions">
+        <span style="font-family:var(--mono);font-size:10px;color:var(--muted)">IPC-A-610G Inspection Report</span>
+        <button id="dl-btn" onclick="downloadPDF()"><span class="dl-icon">⬇</span> Download PDF</button>
+      </div>
+      <div class="report-meta">
+        <div class="mc"><div class="ml">Report ID</div><div class="mv" id="m-rid">—</div></div>
+        <div class="mc"><div class="ml">Timestamp</div><div class="mv" id="m-ts">—</div></div>
+        <div class="mc"><div class="ml">Defects Found</div><div class="mv" id="m-cnt">—</div></div>
+        <div class="mc"><div class="ml">Standard</div><div class="mv">IPC-A-610G</div></div>
+      </div>
+      <div id="verdict-banner">
+        <span class="vbadge" id="v-text">—</span>
+        <span class="vreason" id="v-reason">—</span>
+      </div>
+      <div class="def-sum" id="def-sum"></div>
+      <div class="def-grid" id="def-grid"></div>
+    </div>
+
+    <!-- Evaluation Panel -->
+    <div class="panel">
+      <div class="panel-header"><div class="ph-dot purple"></div>Report Quality Evaluation</div>
+
+      <!-- Status bar: always visible, shows PASS/FAIL per method + overall -->
+      <div id="eval-status-bar">
+        <span class="eval-status-label">Eval Results</span>
+        <span class="eval-pill" id="pill-ragas"><span class="eval-pill-dot"></span>RAGAs</span>
+        <span class="eval-pill" id="pill-judge"><span class="eval-pill-dot"></span>LLM Judge</span>
+        <span class="eval-pill" id="pill-cit"><span class="eval-pill-dot"></span>Citations</span>
+        <span class="eval-overall-badge" id="eval-overall-badge">—</span>
+      </div>
+
+      <div class="eval-tabs">
+        <div class="etab active" data-tab="ragas">RAGAs <span class="etab-badge" id="tab-badge-ragas"></span></div>
+        <div class="etab" data-tab="judge">LLM Judge <span class="etab-badge" id="tab-badge-judge"></span></div>
+        <div class="etab" data-tab="cit">Citations <span class="etab-badge" id="tab-badge-cit"></span></div>
+      </div>
+
+      <!-- RAGAs tab -->
+      <div class="etab-content active" id="tab-ragas">
+        <div class="ragas-split">
+          <div class="ragas-group" id="ragas-retrieval"></div>
+          <div class="ragas-group" id="ragas-generation"></div>
+        </div>
+        <div class="ragas-interp" id="ragas-summary"></div>
+      </div>
+
+      <!-- LLM Judge tab -->
+      <div class="etab-content" id="tab-judge">
+        <div class="judge-overall-row" id="judge-overall"></div>
+        <div class="judge-dims" id="judge-dims"></div>
+      </div>
+
+      <!-- Citations tab -->
+      <div class="etab-content" id="tab-cit">
+        <div class="cit-score-row">
+          <div><div class="cit-score-label">Citation Score</div><div class="cit-score-num" id="cit-score-num">—</div></div>
+          <div style="flex:1"><div class="cit-score-label">Pass Rule</div><div style="font-size:11px;color:var(--muted);line-height:1.5">Cited clause must (1) semantically match the defect type<br>AND (2) contain IPC acceptability criteria language.</div></div>
+        </div>
+        <div class="cit-summary" id="cit-summary"></div>
+        <table class="cit">
+          <thead><tr><th>ID</th><th>Cited Reference</th><th>Verdict</th><th>Acceptability Language</th><th>Pg</th><th>Details</th></tr></thead>
+          <tbody id="cit-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+// ── Store last result for PDF download ────────────────
+let lastReportData = null;
+
+// ── Upload ──────────────────────────────────────────────
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+let file = null;
+
+dropZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => setFile(e.target.files[0]));
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('over'); setFile(e.dataTransfer.files[0]); });
+
+function setFile(f) {
+  if (!f) return;
+  file = f;
+  const r = new FileReader();
+  r.onload = e => {
+    document.getElementById('preview-img').src = e.target.result;
+    document.getElementById('preview-wrap').style.display = 'block';
+    document.getElementById('preview-name').textContent = f.name + ' · ' + (f.size/1024).toFixed(1) + ' KB';
+    dropZone.style.display = 'none';
+  };
+  r.readAsDataURL(f);
+  document.getElementById('run-btn').disabled = false;
+  document.getElementById('right-col').style.display = 'none';
+}
+
+// ── Progress ──────────────────────────────────────────
+function setStep(id, st) {
+  const el = document.getElementById(id);
+  el.className = 'ps ' + st;
+  el.querySelector('.pi').innerHTML = st === 'active' ? '<span class="spin"></span>' : st === 'done' ? '✓' : '◈';
+}
+const delay = ms => new Promise(r => setTimeout(r, ms));
+
+// ── Run ───────────────────────────────────────────────
+document.getElementById('run-btn').addEventListener('click', async () => {
+  if (!file) return;
+  document.getElementById('run-btn').disabled = true;
+  document.getElementById('progress').style.display = 'block';
+  document.getElementById('right-col').style.display = 'none';
+  ['s-yolo','s-rag','s-claude','s-eval'].forEach(s => setStep(s, ''));
+
+  setStep('s-yolo', 'active');
+  const fd = new FormData();
+  fd.append('image', file);
+
+  try {
+    const res = await fetch('/analyze', { method:'POST', body:fd });
+    setStep('s-yolo', 'done');
+    await delay(300); setStep('s-rag', 'active');
+    await delay(400); setStep('s-rag', 'done');
+    setStep('s-claude', 'active');
+    await delay(300); setStep('s-claude', 'done');
+    setStep('s-eval', 'active');
+    const data = await res.json();
+    setStep('s-eval', 'done');
+    render(data);
+  } catch(e) { alert('Error: ' + e.message); }
+  document.getElementById('run-btn').disabled = false;
+});
+
+// ── Render ────────────────────────────────────────────
+function render(data) {
+  lastReportData = data;   // store for PDF download
+  renderReport(data);
+  renderEval(data.evaluation || {}, data.evaluation?.overall_pass ?? false);
+  document.getElementById('right-col').style.display = 'block';
+  document.getElementById('dl-btn').style.display = 'flex';
+  document.getElementById('right-col').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function renderReport(data) {
+  const rid = 'RPT-' + Math.random().toString(36).slice(2,8).toUpperCase();
+  const ts  = new Date().toISOString().replace('T',' ').slice(0,19) + ' UTC';
+  if (lastReportData) { lastReportData.report_id = rid; lastReportData.timestamp = ts; }
+  document.getElementById('hdr-rid').textContent = rid;
+  document.getElementById('m-rid').textContent   = rid;
+  document.getElementById('m-ts').textContent    = ts;
+  document.getElementById('m-cnt').textContent   = data.detections.length;
+
+  const v = data.verdict || 'UNKNOWN';
+  const vc = v.includes('REJECT') ? 'reject' : v.includes('REWORK') ? 'rework' : 'accept';
+  document.getElementById('verdict-banner').className = vc;
+  document.getElementById('v-text').textContent   = v;
+  document.getElementById('v-reason').textContent = data.verdict_reason || '';
+
+  const counts = {};
+  data.detections.forEach(d => counts[d.defect_type] = (counts[d.defect_type]||0)+1);
+  document.getElementById('def-sum').innerHTML =
+    Object.entries(counts).map(([t,c]) => `<div class="sc"><b>${c}</b> ${t}</div>`).join('');
+
+  const grid = document.getElementById('def-grid');
+  grid.innerHTML = '';
+  if (!data.defect_cards?.length) {
+    grid.innerHTML = '<div style="padding:48px;text-align:center"><div style="font-size:40px;margin-bottom:12px">✓</div><div style="color:var(--green);font-size:16px">No Defects Detected</div></div>';
+    return;
+  }
+  data.defect_cards.forEach((c, i) => {
+    const conf = Math.round((c.confidence||0)*100);
+    const ipcCls = (c.ipc_classification||'').toLowerCase().includes('defect') ? 'defect'
+                 : (c.ipc_classification||'').toLowerCase().includes('accept') ? 'acceptable' : 'target';
+    const sev = c.severity || 'Minor';
+    const cc = conf>80?'var(--green)':conf>50?'var(--amber)':'var(--red)';
+    const rem = (c.remediation||[]).map(r=>`<li>${r}</li>`).join('');
+    grid.innerHTML += `<div class="dc" style="animation-delay:${i*80}ms">
+      <div class="dc-hdr">
+        <span class="did">${c.defect_id||`DFT-${String(i+1).padStart(3,'0')}`}</span>
+        <span class="dtbadge">${c.defect_type}</span>
+        <span class="sevbadge ${sev}">${sev}</span>
+      </div>
+      <div class="dc-body">
+        <div class="f"><div class="fl">Location (bbox)</div><div class="fv mono">${c.location||'—'}</div></div>
+        <div class="f"><div class="fl">Confidence</div><div class="fv mono">${conf}%</div><div class="cbar"><div class="cfill" style="width:${conf}%;background:${cc}"></div></div></div>
+        <div class="f"><div class="fl">IPC-A-610G Classification</div><div class="fv"><span class="ipc-chip ${ipcCls}">${c.ipc_classification||'—'}</span></div></div>
+        <div class="f"><div class="fl">IPC Reference</div><div class="fv mono">${c.ipc_reference||'—'}</div></div>
+        <div class="f full"><div class="fl">Root Cause</div><div class="fv">${c.root_cause||'—'}</div></div>
+        <div class="f full" style="border-bottom:none"><div class="fl">Remediation</div><div class="fv"><ul class="rem-list">${rem}</ul></div></div>
+      </div>
+    </div>`;
+  });
+}
+
+// ── Eval helpers ──────────────────────────────────────
+const scoreCol = v => v>=0.8?'var(--green)':v>=0.6?'var(--amber)':'var(--red)';
+const judgeCol = s => s>=4?'var(--green)':s>=3?'var(--amber)':'var(--red)';
+const pct      = v => Math.round((v||0)*100) + '%';
+
+function pill(id, label, passed) {
+  const el = document.getElementById(id);
+  el.className = 'eval-pill ' + (passed ? 'pass' : 'fail');
+  el.innerHTML = `<span class="eval-pill-dot"></span>${label}`;
+}
+
+function renderEval(ev, overallPass) {
+  const ragas = ev.ragas || {};
+  const judge = ev.llm_judge || {};
+  const cit   = ev.citations || {};
+
+  // Status bar pills
+  pill('pill-ragas', 'RAGAs',    ragas.pass ?? false);
+  pill('pill-judge', 'LLM Judge', judge.overall?.pass ?? false);
+  pill('pill-cit',   'Citations', cit.pass ?? false);
+
+  const ob = document.getElementById('eval-overall-badge');
+  ob.className = 'eval-overall-badge ' + (overallPass ? 'pass' : 'fail');
+  ob.textContent = overallPass ? '✓ ALL PASSED' : '✗ REVIEW REQUIRED';
+
+  // Tab badges
+  function tabBadge(id, passed) {
+    const el = document.getElementById(id);
+    const cls = passed ? 'pass' : 'fail';
+    el.className = 'etab-badge ' + cls;
+    el.textContent = passed ? 'PASS' : 'FAIL';
+  }
+  tabBadge('tab-badge-ragas', ragas.pass ?? false);
+  tabBadge('tab-badge-judge', judge.overall?.pass ?? false);
+  tabBadge('tab-badge-cit',   cit.pass ?? false);
+
+  renderRagas(ragas);
+  renderJudge(judge);
+  renderCitations(cit);
+}
+
+function metricRow(label, val) {
+  const col = scoreCol(val);
+  return `<div class="metric-row">
+    <span class="metric-name">${label}</span>
+    <div class="metric-bar-wrap"><div class="metric-bar" style="width:${pct(val)};background:${col}"></div></div>
+    <span class="metric-val" style="color:${col}">${pct(val)}</span>
+  </div>`;
+}
+
+function renderRagas(ragas) {
+  const ret = ragas.retrieval || {};
+  const gen = ragas.generation || {};
+
+  document.getElementById('ragas-retrieval').innerHTML = `
+    <div class="rg-header">
+      <span class="rg-title">Retrieval Pipeline</span>
+      <span class="rg-verdict ${ret.pass?'pass':'fail'}">${ret.label||'—'}</span>
+    </div>
+    ${metricRow('Context Precision', ret.context_precision||0)}
+    ${metricRow('Context Recall',    ret.context_recall||0)}
+    <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:8px">
+      avg: <b style="color:${scoreCol(ret.average||0)}">${pct(ret.average||0)}</b>
+      &nbsp;·&nbsp;threshold: 70%
+    </div>`;
+
+  document.getElementById('ragas-generation').innerHTML = `
+    <div class="rg-header">
+      <span class="rg-title">Generation Pipeline</span>
+      <span class="rg-verdict ${gen.pass?'pass':'fail'}">${gen.label||'—'}</span>
+    </div>
+    ${metricRow('Faithfulness',      gen.faithfulness||0)}
+    ${metricRow('Answer Relevancy',  gen.answer_relevancy||0)}
+    <div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:8px">
+      avg: <b style="color:${scoreCol(gen.average||0)}">${pct(gen.average||0)}</b>
+      &nbsp;·&nbsp;threshold: 70%
+    </div>`;
+
+  document.getElementById('ragas-summary').textContent = ragas.summary || '—';
+  // Append interpretation if available
+  const ri = (ragas.retrieval||{}).interpretation;
+  const gi = (ragas.generation||{}).interpretation;
+  if (ri || gi) {
+    const el = document.getElementById('ragas-summary');
+    el.innerHTML += (ri ? `<br><br><b>Retrieval:</b> ${ri}` : '') +
+                    (gi ? `<br><b>Generation:</b> ${gi}` : '');
+  }
+}
+
+function renderJudge(judge) {
+  const overall = judge.overall || {};
+  const os = overall.score || 0;
+  const col = judgeCol(os);
+  document.getElementById('judge-overall').innerHTML = `
+    <div><div class="jo-label">Overall Score</div><div class="jo-score" style="color:${col}">${os}<span style="font-size:14px;color:var(--muted)">/5</span></div></div>
+    <div class="jo-info"><div class="jo-label" style="margin-bottom:6px">Assessment</div><div class="jo-summary">${overall.summary||'—'}</div></div>
+    <span class="jo-badge ${overall.pass?'pass':'fail'}">${overall.label||'—'}</span>`;
+
+  const dims = ['ipc_grounding','defect_coverage','root_cause_quality','remediation_quality','hallucination_risk'];
+  const labels = {'ipc_grounding':'IPC Grounding','defect_coverage':'Defect Coverage',
+                  'root_cause_quality':'Root Cause Quality','remediation_quality':'Remediation Quality',
+                  'hallucination_risk':'Hallucination Risk'};
+  document.getElementById('judge-dims').innerHTML = dims.map(k => {
+    const d = judge[k] || {};
+    const s = d.score || 0;
+    const c = judgeCol(s);
+    return `<div class="jd-row">
+      <div class="jd-hdr" onclick="togJust(this)">
+        <span class="jd-score" style="background:${c}20;color:${c};border:1px solid ${c}60">${s}/5</span>
+        <span class="jd-name">${labels[k]}</span>
+        <span class="jd-pill ${d.pass?'pass':'fail'}">${d.label||'—'}</span>
+        <span class="jd-chev">▶</span>
+      </div>
+      <div class="jd-just">${d.justification||'No justification.'}</div>
+    </div>`;
+  }).join('');
+}
+
+function togJust(hdr) {
+  hdr.nextElementSibling.classList.toggle('vis');
+  hdr.querySelector('.jd-chev').classList.toggle('open');
+}
+
+function renderCitations(cit) {
+  const score = cit.score ?? 1;
+  const col   = score >= 0.8 ? 'var(--green)' : score >= 0.5 ? 'var(--amber)' : 'var(--red)';
+  document.getElementById('cit-score-num').innerHTML =
+    `<span style="color:${col}">${Math.round(score*100)}%</span>`;
+  document.getElementById('cit-summary').textContent = cit.summary || '—';
+
+  const rows = cit.results || [];
+  document.getElementById('cit-tbody').innerHTML = rows.length
+    ? rows.map((r,i) => {
+        const kws = (r.found_keywords||[]).map(k=>`<span class="kw-chip">${k}</span>`).join('');
+        const exc = r.matched_excerpt
+          ? `<div onclick="togExc(this)" class="cit-expand">▶ view matched excerpt</div>
+             <div class="cit-excerpt">${r.matched_excerpt}…</div>` : '—';
+        return `<tr>
+          <td style="font-family:var(--mono);font-size:11px">${r.defect_id}</td>
+          <td style="font-family:var(--mono);font-size:11px;color:var(--text)">${r.cited_reference}</td>
+          <td><span class="cbadge ${r.verdict}">${r.verdict}</span></td>
+          <td>${kws || '<span style="color:var(--muted);font-size:11px">none found</span>'}</td>
+          <td style="font-family:var(--mono);font-size:11px;color:var(--muted)">${r.matched_page||'—'}</td>
+          <td>${exc}</td>
+        </tr>`;
+      }).join('')
+    : '<tr><td colspan="6" style="color:var(--muted);text-align:center;padding:20px">No citations to verify.</td></tr>';
+}
+
+function togExc(el) {
+  const exc = el.nextElementSibling;
+  const open = exc.style.display === 'block';
+  exc.style.display = open ? 'none' : 'block';
+  el.textContent = (open ? '▶' : '▼') + ' view matched excerpt';
+}
+
+// ── PDF Download ──────────────────────────────────────
+async function downloadPDF() {
+  if (!lastReportData) return;
+  const btn = document.getElementById('dl-btn');
+  btn.classList.add('loading');
+  btn.innerHTML = '<span class="dl-icon">⏳</span> Generating…';
+
+  try {
+    const res = await fetch('/download-report', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(lastReportData),
+    });
+    if (!res.ok) throw new Error(await res.text());
+
+    const blob     = await res.blob();
+    const rid      = lastReportData.report_id || 'report';
+    const url      = URL.createObjectURL(blob);
+    const anchor   = document.createElement('a');
+    anchor.href     = url;
+    anchor.download = `VLDA_Report_${rid}.pdf`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  } catch(e) {
+    alert('PDF generation failed: ' + e.message);
+  }
+
+  btn.classList.remove('loading');
+  btn.innerHTML = '<span class="dl-icon">⬇</span> Download PDF';
+}
+
+// ── Tabs ──────────────────────────────────────────────
+document.querySelectorAll('.etab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.etab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.etab-content').forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+  });
+});
+</script>
+</body>
+</html>

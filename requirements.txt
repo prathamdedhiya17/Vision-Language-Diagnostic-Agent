@@ -1,0 +1,8 @@
+flask
+ultralytics
+chromadb
+sentence-transformers
+anthropic
+pillow
+python-dotenv
+reportlab
